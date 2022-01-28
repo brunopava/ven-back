@@ -1,0 +1,6 @@
+asyncio
+typing
+pathlib
+fastapi
+uvicorn
+git+https://github.com/spotDL/spotdl-v4.git#egg=spotdl
