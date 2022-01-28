@@ -81,7 +81,10 @@ class SettingsModel(BaseModel):
 # app.server = FastAPI()
 # app.settings = SettingsModel()
 
+downloader = GetDownloader()
 app = FastAPI()
+
+
 
 @app.get("/api/song/search")
 def song_from_search(query: str) -> Song:
@@ -127,7 +130,7 @@ def change_output(output: str) -> bool:
     Change output folder
     """
 
-    app.downloader.output = output
+    downloader.output = output
 
     return True
 
@@ -140,7 +143,7 @@ async def download_search(
     Search for song and download the first result.
     """
 
-    song, path = await app.downloader.pool_download(Song.from_search_term(query))
+    song, path = await downloader.pool_download(Song.from_search_term(query))
 
     if return_file is True:
         if path is None:
@@ -159,7 +162,7 @@ async def download_objects(
     Download songs using Song objects.
     """
 
-    song_obj, path = await app.downloader.pool_download(Song(**song.dict()))
+    song_obj, path = await downloader.pool_download(Song(**song.dict()))
 
     if return_file is True:
         if path is None:
@@ -170,112 +173,70 @@ async def download_objects(
     return song_obj, path
 
 
-@app.get("/api/settings")
-def get_settings() -> SettingsModel:
-    """
-    Return the settings object.
-    """
 
-    return SettingsModel(**app.settings)
-
-
-@app.post("/api/settings/update")
-def change_settings(settings: SettingsModel) -> bool:
+def GetDownloader() -> Downloader:
     """
-    Change downloader settings by reinitializing the downloader.
+    Run the web server.
     """
 
-    # Create shallow copy of settings
-    settings_cpy = app.settings.copy()
+    settings = {
+        'verbose': False,
+        'cache_path': '.',
+        'audio_provider': "youtube-music",
+        'lyrics_provider': "musixmatch",
+        'ffmpeg': "ffmpeg",
+        'variable_bitrate': None,
+        'constant_bitrate': None,
+        'ffmpeg_args': None,
+        'format': "mp3",
+        'save_file': None,
+        'm3u': None,
+        'output': ".",
+        'overwrite': "overwrite",
+        'client_id': '7375acea79274eb2b60280141f60c1c0',
+        'client_secret': '8eb64e22379e45a5ac4e064ed7f1c6ee',
+        'user_auth': False,
+        'threads': 1,
+        'browsers': Optional[List[str]],
+        'progress_handler': None,
+        'no_cache': None,
+    }
 
-    # Update settings with new settings that are not None
-    settings_cpy.update({k: v for k, v in settings.dict().items() if v is not None})
+    loop = asyncio.new_event_loop()
+    loop = loop
 
-    # Re-initialize downloader
-    app.downloader = Downloader(
-        audio_provider=settings_cpy["audio_provider"],
-        lyrics_provider=settings_cpy["lyrics_provider"],
-        ffmpeg=settings_cpy["ffmpeg"],
-        variable_bitrate=settings_cpy["variable_bitrate"],
-        constant_bitrate=settings_cpy["constant_bitrate"],
-        ffmpeg_args=settings_cpy["ffmpeg_args"],
-        output_format=settings_cpy["format"],
-        save_file=settings_cpy["save_file"],
-        threads=settings_cpy["threads"],
-        output=settings_cpy["output"],
-        overwrite=settings_cpy["overwrite"],
-        m3u_file=settings_cpy["m3u"],
-        progress_handler=None,
-        # loop=app.loop,
+    SpotifyClient.init(
+        client_id=settings["client_id"],
+        client_secret=settings["client_secret"],
+        user_auth=settings["user_auth"],
+        cache_path=settings["cache_path"],
+        no_cache=settings["no_cache"],
     )
 
-    return True
+    down = Downloader(
+        audio_provider=settings["audio_provider"],
+        lyrics_provider=settings["lyrics_provider"],
+        ffmpeg=settings["ffmpeg"],
+        variable_bitrate=settings["variable_bitrate"],
+        constant_bitrate=settings["constant_bitrate"],
+        ffmpeg_args=settings["ffmpeg_args"],
+        output_format=settings["format"],
+        save_file=settings["save_file"],
+        threads=settings["threads"],
+        output=settings["output"],
+        overwrite=settings["overwrite"],
+        # m3u_file=settings["m3u"],
+        # progress_handler=None,
+        # loop=loop,
+    )
 
+    # config = Config(app=app.server, port=8800, workers=1, loop=loop)  # type: ignore
 
-# def web(settings: Dict[str, Any]):
-#     """
-#     Run the web server.
-#     """
+    # server = Server(config)
 
-#     loop = asyncio.new_event_loop()
-#     app.settings = settings
-#     app.loop = loop
+    # loop.run_until_complete(server.serve())
 
-#     SpotifyClient.init(
-#         client_id=settings["client_id"],
-#         client_secret=settings["client_secret"],
-#         user_auth=settings["user_auth"],
-#         cache_path=settings["cache_path"],
-#         no_cache=settings["no_cache"],
-#     )
+    if downloader.progress_handler:
+        downloader.progress_handler.close()
 
-#     app.downloader = Downloader(
-#         audio_provider=settings["audio_provider"],
-#         lyrics_provider=settings["lyrics_provider"],
-#         ffmpeg=settings["ffmpeg"],
-#         variable_bitrate=settings["variable_bitrate"],
-#         constant_bitrate=settings["constant_bitrate"],
-#         ffmpeg_args=settings["ffmpeg_args"],
-#         output_format=settings["format"],
-#         save_file=settings["save_file"],
-#         threads=settings["threads"],
-#         output=settings["output"],
-#         overwrite=settings["overwrite"],
-#         # m3u_file=settings["m3u"],
-#         # progress_handler=None,
-#         # loop=loop,
-#     )
-
-#     config = Config(app=app.server, port=8800, workers=1, loop=loop)  # type: ignore
-
-#     server = Server(config)
-
-#     loop.run_until_complete(server.serve())
-
-#     if app.downloader.progress_handler:
-#         app.downloader.progress_handler.close()
-
-# tempsettings = {
-#     'verbose': False,
-#     'cache_path': '.',
-#     'audio_provider': "youtube-music",
-#     'lyrics_provider': "musixmatch",
-#     'ffmpeg': "ffmpeg",
-#     'variable_bitrate': None,
-#     'constant_bitrate': None,
-#     'ffmpeg_args': None,
-#     'format': "mp3",
-#     'save_file': None,
-#     'm3u': None,
-#     'output': ".",
-#     'overwrite': "overwrite",
-#     'client_id': '7375acea79274eb2b60280141f60c1c0',
-#     'client_secret': '8eb64e22379e45a5ac4e064ed7f1c6ee',
-#     'user_auth': False,
-#     'threads': 1,
-#     'browsers': Optional[List[str]],
-#     'progress_handler': None,
-#     'no_cache': None,
-# }
-
-# web(tempsettings)
+    return down;
