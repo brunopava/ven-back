@@ -77,11 +77,13 @@ class SettingsModel(BaseModel):
     progress_handler: Optional[str]
 
 
-app = App()
-app.server = FastAPI()
-app.settings = SettingsModel()
+# app = App()
+# app.server = FastAPI()
+# app.settings = SettingsModel()
 
-@app.server.get("/api/song/search")
+app = FastAPI()
+
+@app.get("/api/song/search")
 def song_from_search(query: str) -> Song:
     """
     Search for a song on spotify using search query.
@@ -91,7 +93,7 @@ def song_from_search(query: str) -> Song:
     return Song.from_search_term(query)
 
 
-@app.server.get("/api/song/url")
+@app.get("/api/song/url")
 def song_from_url(url: str) -> Song:
     """
     Search for a song on spotify using url.
@@ -101,7 +103,7 @@ def song_from_url(url: str) -> Song:
     return Song.from_url(url)
 
 
-@app.server.post("/api/songs/query")
+@app.post("/api/songs/query")
 def query_search(query: List[str]) -> List[Song]:
     """
     Parse query and return list of Song objects.
@@ -110,7 +112,7 @@ def query_search(query: List[str]) -> List[Song]:
     return parse_query(query)
 
 
-@app.server.get("/api/songs/search")
+@app.get("/api/songs/search")
 def search_search(query: str) -> List[Song]:
     """
     Parse search term and return list of Song objects.
@@ -119,7 +121,7 @@ def search_search(query: str) -> List[Song]:
     return get_search_results(query)
 
 
-@app.server.post("/api/downloader/change_output")
+@app.post("/api/downloader/change_output")
 def change_output(output: str) -> bool:
     """
     Change output folder
@@ -130,7 +132,7 @@ def change_output(output: str) -> bool:
     return True
 
 
-@app.server.post("/api/download/search")
+@app.post("/api/download/search")
 async def download_search(
     query: str, return_file: bool = False
 ) -> Union[Tuple[Song, Optional[Path]], FileResponse]:
@@ -149,7 +151,7 @@ async def download_search(
     return song, path
 
 
-@app.server.post("/api/download/objects")
+@app.post("/api/download/objects")
 async def download_objects(
     song: SongModel, return_file: bool = False
 ) -> Union[Tuple[Song, Optional[Path]], FileResponse]:
@@ -168,7 +170,7 @@ async def download_objects(
     return song_obj, path
 
 
-@app.server.get("/api/settings")
+@app.get("/api/settings")
 def get_settings() -> SettingsModel:
     """
     Return the settings object.
@@ -177,7 +179,7 @@ def get_settings() -> SettingsModel:
     return SettingsModel(**app.settings)
 
 
-@app.server.post("/api/settings/update")
+@app.post("/api/settings/update")
 def change_settings(settings: SettingsModel) -> bool:
     """
     Change downloader settings by reinitializing the downloader.
@@ -210,70 +212,70 @@ def change_settings(settings: SettingsModel) -> bool:
     return True
 
 
-def web(settings: Dict[str, Any]):
-    """
-    Run the web server.
-    """
+# def web(settings: Dict[str, Any]):
+#     """
+#     Run the web server.
+#     """
 
-    loop = asyncio.new_event_loop()
-    app.settings = settings
-    app.loop = loop
+#     loop = asyncio.new_event_loop()
+#     app.settings = settings
+#     app.loop = loop
 
-    SpotifyClient.init(
-        client_id=settings["client_id"],
-        client_secret=settings["client_secret"],
-        user_auth=settings["user_auth"],
-        cache_path=settings["cache_path"],
-        no_cache=settings["no_cache"],
-    )
+#     SpotifyClient.init(
+#         client_id=settings["client_id"],
+#         client_secret=settings["client_secret"],
+#         user_auth=settings["user_auth"],
+#         cache_path=settings["cache_path"],
+#         no_cache=settings["no_cache"],
+#     )
 
-    app.downloader = Downloader(
-        audio_provider=settings["audio_provider"],
-        lyrics_provider=settings["lyrics_provider"],
-        ffmpeg=settings["ffmpeg"],
-        variable_bitrate=settings["variable_bitrate"],
-        constant_bitrate=settings["constant_bitrate"],
-        ffmpeg_args=settings["ffmpeg_args"],
-        output_format=settings["format"],
-        save_file=settings["save_file"],
-        threads=settings["threads"],
-        output=settings["output"],
-        overwrite=settings["overwrite"],
-        # m3u_file=settings["m3u"],
-        # progress_handler=None,
-        # loop=loop,
-    )
+#     app.downloader = Downloader(
+#         audio_provider=settings["audio_provider"],
+#         lyrics_provider=settings["lyrics_provider"],
+#         ffmpeg=settings["ffmpeg"],
+#         variable_bitrate=settings["variable_bitrate"],
+#         constant_bitrate=settings["constant_bitrate"],
+#         ffmpeg_args=settings["ffmpeg_args"],
+#         output_format=settings["format"],
+#         save_file=settings["save_file"],
+#         threads=settings["threads"],
+#         output=settings["output"],
+#         overwrite=settings["overwrite"],
+#         # m3u_file=settings["m3u"],
+#         # progress_handler=None,
+#         # loop=loop,
+#     )
 
-    config = Config(app=app.server, port=8800, workers=1, loop=loop)  # type: ignore
+#     config = Config(app=app.server, port=8800, workers=1, loop=loop)  # type: ignore
 
-    server = Server(config)
+#     server = Server(config)
 
-    loop.run_until_complete(server.serve())
+#     loop.run_until_complete(server.serve())
 
-    if app.downloader.progress_handler:
-        app.downloader.progress_handler.close()
+#     if app.downloader.progress_handler:
+#         app.downloader.progress_handler.close()
 
-tempsettings = {
-    'verbose': False,
-    'cache_path': '.',
-    'audio_provider': "youtube-music",
-    'lyrics_provider': "musixmatch",
-    'ffmpeg': "ffmpeg",
-    'variable_bitrate': None,
-    'constant_bitrate': None,
-    'ffmpeg_args': None,
-    'format': "mp3",
-    'save_file': None,
-    'm3u': None,
-    'output': ".",
-    'overwrite': "overwrite",
-    'client_id': '7375acea79274eb2b60280141f60c1c0',
-    'client_secret': '8eb64e22379e45a5ac4e064ed7f1c6ee',
-    'user_auth': False,
-    'threads': 1,
-    'browsers': Optional[List[str]],
-    'progress_handler': None,
-    'no_cache': None,
-}
+# tempsettings = {
+#     'verbose': False,
+#     'cache_path': '.',
+#     'audio_provider': "youtube-music",
+#     'lyrics_provider': "musixmatch",
+#     'ffmpeg': "ffmpeg",
+#     'variable_bitrate': None,
+#     'constant_bitrate': None,
+#     'ffmpeg_args': None,
+#     'format': "mp3",
+#     'save_file': None,
+#     'm3u': None,
+#     'output': ".",
+#     'overwrite': "overwrite",
+#     'client_id': '7375acea79274eb2b60280141f60c1c0',
+#     'client_secret': '8eb64e22379e45a5ac4e064ed7f1c6ee',
+#     'user_auth': False,
+#     'threads': 1,
+#     'browsers': Optional[List[str]],
+#     'progress_handler': None,
+#     'no_cache': None,
+# }
 
-web(tempsettings)
+# web(tempsettings)
